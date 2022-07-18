@@ -1,10 +1,23 @@
 using Godot;
+using static GameUtils;
 using System;
 
 public class Player : KinematicBody2D
 {
 	[Export]
 	private int speed = 75;
+	[Export]
+	public float health = 100;
+	[Export]
+	public int healthMax = 100;
+	[Export]
+	private int healthRegeneration = 1;
+	[Export]
+	public float mana = 100;
+	[Export]
+	public int manaMax = 100;
+	[Export]
+	private int manaRegeneration = 2;
 
 	private Vector2 lastDirection = new Vector2(0, 1);
 	private bool attackPlaying = false;
@@ -12,6 +25,30 @@ public class Player : KinematicBody2D
 
 	private AnimatedSprite Sprite {
 		get { return GetChild<AnimatedSprite>(0); }
+	}
+
+	[Signal]
+	public delegate void PlayerStatsChanged(Player player);
+
+	public override void _Ready()
+	{
+		this.Connect("PlayerStatsChanged", GetNode<ColorRect>("../GUI/Health"), "OnPlayerStatsChanged");
+		this.Connect("PlayerStatsChanged", GetNode<ColorRect>("../GUI/Mana"), "OnPlayerStatsChanged");
+		EmitSignal("PlayerStatsChanged", this);
+	}
+
+	public override void _Process(float delta)
+	{
+		float newMana = Mathf.Min(mana + manaRegeneration * delta, manaMax);
+		if (newMana != mana) {
+			mana = newMana;
+			EmitSignal("PlayerStatsChanged", this);
+		}
+		float newHealth = Mathf.Min(health + healthRegeneration * delta, healthMax);
+		if (newHealth != health) {
+			health = newHealth;
+			EmitSignal("PlayerStatsChanged", this);
+		}
 	}
 
 	public override void _PhysicsProcess(float delta)
@@ -65,9 +102,29 @@ public class Player : KinematicBody2D
 			var animation = GetGridDirection(lastDirection) + "_attack";
 			Sprite.Play(animation);
 		} else if (@event.IsActionPressed("fireball")) {
-			attackPlaying = true;
-			var animation = GetGridDirection(lastDirection) + "_fireball";
-			Sprite.Play(animation);
+			if (mana >= 25) {
+				mana -= 25;
+				EmitSignal("PlayerStatsChanged", this);
+				attackPlaying = true;
+				var animation = GetGridDirection(lastDirection) + "_fireball";
+				Sprite.Play(animation);
+			}
+		}
+	}
+
+	public void OnWorldCreated() 
+	{
+		int x = 0;
+		int y = 0;
+		for(; x < 60; x++) {
+			for(; y < 60; y++) {
+				if (TerrainLookup.TryGetValue(new Vector2(x, y), out TerrainType val)) {
+					if (val == TerrainType.GRASS) {
+						Position = new Vector2(x * 32, y * 32);
+						return;
+					}
+				}
+			}
 		}
 	}
 
@@ -88,19 +145,4 @@ public class Player : KinematicBody2D
 		}
 		Sprite.Play(animation);
 	} 
-
-	private string GetGridDirection(Vector2 direction)
-	{
-		var norm = direction.Normalized();
-		if (norm.y >= 0.707) {
-			return "down";
-		} else if (norm.y <= -0.707) {
-			return "up";
-		} else if (norm.x <= -0.707) {
-			return "left";
-		} else if (norm.x >= 0.707) {
-			return "right";
-		}
-		return "down";
-	}
 }
