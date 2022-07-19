@@ -22,6 +22,16 @@ public static class GameUtils
         0,0,0, 0,0,0, 0,0,0, 0,0,0, 1,1,0, 0,0,0, 0,0,0, 0,1,1, 0,0,0, 0,0,0, 0,1,0, 0,0,0
     };
     private static Random random = new Random(Guid.NewGuid().GetHashCode());
+    private static RandomNumberGenerator _rng;
+    public static RandomNumberGenerator RNG {
+        get {
+            if (_rng == null) {
+                _rng = new RandomNumberGenerator();
+                _rng.Seed = (ulong)Guid.NewGuid().GetHashCode();
+            }
+            return _rng;
+        }
+    }
 
     public static Dictionary<Vector2, TerrainType> TerrainLookup = new Dictionary<Vector2, TerrainType>();
 
@@ -42,12 +52,12 @@ public static class GameUtils
 
     public static int RandomInt()
     {
-        return random.Next();
+        return (int)RNG.Randi();
     }
 
     public static float RandomFloat()
     {
-        return (float)random.NextDouble();
+        return RNG.Randf();
     }
 
     public static int ScaleToInt(float input, int scale) 
@@ -56,6 +66,11 @@ public static class GameUtils
     }
 
     public static float GetNoise(int x, int y, OpenSimplexNoise noise) {
+        float n = noise.GetNoise2d(x, y);
+        return (n + 1.0f) / 2.0f;
+    }
+
+    public static float GetNoise(float x, float y, OpenSimplexNoise noise) {
         float n = noise.GetNoise2d(x, y);
         return (n + 1.0f) / 2.0f;
     }

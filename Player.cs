@@ -114,13 +114,13 @@ public class Player : KinematicBody2D
 
 	public void OnWorldCreated() 
 	{
-		int x = 0;
-		int y = 0;
+		int x = 15;
+		int y = 15;
 		for(; x < 60; x++) {
 			for(; y < 60; y++) {
 				if (TerrainLookup.TryGetValue(new Vector2(x, y), out TerrainType val)) {
 					if (val == TerrainType.GRASS) {
-						Position = new Vector2(x * 32, y * 32);
+						GlobalPosition = new Vector2(x * 32, y * 32);
 						return;
 					}
 				}
