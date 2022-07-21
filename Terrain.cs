@@ -25,6 +25,7 @@ public class Terrain : TileMap
     {
         this.Connect("WorldCreated", GetNode<KinematicBody2D>("../Player"), "OnWorldCreated");
         this.Connect("WorldCreated", GetNode<TileMap>("../Objects"), "OnWorldCreated");
+        this.Connect("WorldCreated", GetNode<Spawner>("../Spawner"), "OnWorldCreated");
 
         noise.Seed = RandomInt();
         noise.Octaves = 3;
@@ -43,8 +44,8 @@ public class Terrain : TileMap
         // TileSet.TileSetTexture(0, tex);
 
         // Determine main areas of land and water.
-        for(int x = 0; x <= 64; x++) {
-            for (int y = 0; y <= 64; y++) {
+        for(int x = 0; x < 64; x++) {
+            for (int y = 0; y < 64; y++) {
                 Vector2 loc = new Vector2(x, y);
 
                 if (x > 4 && x <= 60 && y > 4 && y <= 60) {
@@ -69,21 +70,9 @@ public class Terrain : TileMap
 
         }
 
-        // Introduce areas of sand within landmasses.
-        // for(int x = 0; x <= 64; x++) {
-        //     for (int y = 0; y <= 64; y++) {   
-        //         Vector2 loc = new Vector2(x, y);  
-        //         if (TerrainLookup.TryGetValue(loc, out TerrainType type)) {
-        //             if (type == TerrainType.GRASS) {
-                        
-        //             }
-        //         }  
-        //     }
-        // }
-
         // Find and mark edges.
-        for(int x = 0; x <= 64; x++) {
-            for (int y = 0; y <= 64; y++) {   
+        for(int x = 0; x < 64; x++) {
+            for (int y = 0; y < 64; y++) {   
                 Vector2 loc = new Vector2(x, y);  
                 if (TerrainLookup.TryGetValue(loc, out TerrainType type)) {
                     if (type == TerrainType.GRASS) {
@@ -105,6 +94,7 @@ public class Terrain : TileMap
                                 break;
                             }
                         }
+                        // Introduce sand.
                         if (type == TerrainType.GRASS) {
                             float n = GetNoise(x, y, noise);
                             if (n > 0.6) {
@@ -142,8 +132,6 @@ public class Terrain : TileMap
         foreach(int id in TileSet.GetTilesIds()) {
             tiles.Add(TileSet.TileGetName(id), id);
         }
-        
-
         for(int x = 0; x <= 64; x++) {
             for (int y = 0; y <= 64; y++) {
                 if (TerrainLookup.TryGetValue(new Vector2(x,y), out TerrainType type)) {

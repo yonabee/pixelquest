@@ -5,26 +5,53 @@ using System;
 public class Player : KinematicBody2D
 {
 	[Export]
-	private int speed = 75;
+	public int speed = 75;
+
 	[Export]
 	public float health = 100;
+
 	[Export]
 	public int healthMax = 100;
+
 	[Export]
-	private int healthRegeneration = 1;
+	public int healthRegeneration = 1;
+
 	[Export]
 	public float mana = 100;
+
 	[Export]
 	public int manaMax = 100;
-	[Export]
-	private int manaRegeneration = 2;
 
+	[Export]
+	public int manaRegeneration = 2;
+
+	[Export]
+	public float attackCooldown = 1000f;
+
+	private float nextAttackTime = 0f;
+	private int attackDamage = 30;
 	private Vector2 lastDirection = new Vector2(0, 1);
 	private bool attackPlaying = false;
 	private bool dragEnabled = false;
+	private AnimatedSprite _sprite;
+	private RayCast2D _raycast;
 
 	private AnimatedSprite Sprite {
-		get { return GetChild<AnimatedSprite>(0); }
+		get { 
+			if (_sprite == null) {
+				_sprite = GetNode<AnimatedSprite>("./Sprite");
+			}
+			return _sprite;
+		}
+	}
+
+	private RayCast2D RayCast {
+		get { 
+			if (_raycast == null) {
+				_raycast = GetNode<RayCast2D>("./RayCast2D"); 
+			}
+			return _raycast; 
+		}
 	}
 
 	[Signal]
@@ -76,6 +103,10 @@ public class Player : KinematicBody2D
 		if (!attackPlaying) {
 			AnimatePlayer(movement.Normalized());
 		}
+
+		if (direction != Vector2.Zero) {
+			RayCast.CastTo = direction.Normalized() * 8;
+		}
 	}
 
 	public override void _InputEvent(Godot.Object viewport, InputEvent @event, int shapeIdx) 
@@ -98,9 +129,18 @@ public class Player : KinematicBody2D
 		}
 
 		if (@event.IsActionPressed("attack")) {
-			attackPlaying = true;
-			var animation = GetGridDirection(lastDirection) + "_attack";
-			Sprite.Play(animation);
+			var now = OS.GetTicksMsec();
+			if (now >= nextAttackTime) {
+				var target = RayCast.GetCollider() as Node;
+				if (target != null && target.Name.Contains("Skeleton")) {
+					(target as Skeleton).Hit(attackDamage);
+				}
+				attackPlaying = true;
+				var animation = GetGridDirection(lastDirection) + "_attack";
+				Sprite.Play(animation);
+				nextAttackTime = now + attackCooldown;
+			}
+			
 		} else if (@event.IsActionPressed("fireball")) {
 			if (mana >= 25) {
 				mana -= 25;

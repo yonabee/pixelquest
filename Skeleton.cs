@@ -6,6 +6,19 @@ public class Skeleton : KinematicBody2D
 {
     [Export]
     public int speed = 25;
+
+    [Export]
+    public int health = 100;
+
+    [Export]
+    public int healthMax = 200;
+
+    [Export]
+    public int healthRegeneration = 1;
+
+    [Signal]
+	public delegate void Death();
+
     private Vector2 direction;
     private Vector2 lastDirection = new Vector2(0,1);
     private int bounceCountdown = 0;
@@ -21,9 +34,36 @@ public class Skeleton : KinematicBody2D
         }
 	}
 
+    private AnimatedSprite _sprite;
     private AnimatedSprite Sprite {
-		get { return GetChild<AnimatedSprite>(0); }
+		get { 
+			if (_sprite == null) {
+				_sprite = GetNode<AnimatedSprite>("./AnimatedSprite");
+			}
+			return _sprite;
+		}
 	}
+
+    private Timer _timer;
+    private Timer Timer {
+		get { 
+			if (_timer == null) {
+				_timer = GetNode<Timer>("./Timer");
+			}
+			return _timer;
+		}
+	}
+
+    private AnimationPlayer _animationPlayer;
+    private AnimationPlayer AnimationPlayer {
+		get { 
+			if (_animationPlayer == null) {
+				_animationPlayer = GetNode<AnimationPlayer>("./AnimationPlayer");
+			}
+			return _animationPlayer;
+		}
+	}
+
 
     private OpenSimplexNoise noise = new OpenSimplexNoise();
 
@@ -34,6 +74,11 @@ public class Skeleton : KinematicBody2D
         noise.Period = 12f * RandomFloat();
         noise.Lacunarity = 4f * RandomFloat();
         noise.Persistence = 1f * RandomFloat();
+    }
+
+    public override void _Process(float delta)
+    {
+        health = Mathf.FloorToInt(Mathf.Min(health + healthRegeneration * delta, healthMax));
     }
 
     public override void _PhysicsProcess(float delta)
@@ -69,6 +114,38 @@ public class Skeleton : KinematicBody2D
         if (bounceCountdown > 0) {
             bounceCountdown -= 1;
         }
+    }
+
+    public void Arise()
+    {
+        animationPlaying = true;
+        Sprite.Play("birth");
+    }
+
+    public void Hit(int damage)
+    {
+        health -= damage;
+        if (health > 0) {
+            AnimationPlayer.Play("Hit");
+        } else {
+            Timer.Stop();
+            direction = Vector2.Zero;
+            SetProcess(false);
+            animationPlaying = true;
+            Sprite.Play("death");
+            EmitSignal("Death");
+        }
+    }
+
+    public void _on_AnimatedSprite_animation_finished() 
+    {
+        if (Sprite.Animation == "birth") {
+            Sprite.Animation = "down_idle";
+            Timer.Start();
+        } else if (Sprite.Animation == "death") {
+            GetTree().QueueDelete(this);
+        }
+        animationPlaying = false;
     }
 
     private void AnimateMonster(Vector2 direction)
