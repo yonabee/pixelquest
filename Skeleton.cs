@@ -2,22 +2,19 @@ using Godot;
 using static GameUtils;
 using System;
 
-public class Skeleton : KinematicBody2D
+public class Skeleton : Spawnable
 {
     [Export]
     public int speed = 25;
 
     [Export]
-    public int health = 100;
+    public int health = 50;
 
     [Export]
-    public int healthMax = 200;
+    public int healthMax = 50;
 
     [Export]
     public int healthRegeneration = 1;
-
-    [Signal]
-	public delegate void Death();
 
     private Vector2 direction;
     private Vector2 lastDirection = new Vector2(0,1);
@@ -41,16 +38,6 @@ public class Skeleton : KinematicBody2D
 				_sprite = GetNode<AnimatedSprite>("./AnimatedSprite");
 			}
 			return _sprite;
-		}
-	}
-
-    private Timer _timer;
-    private Timer Timer {
-		get { 
-			if (_timer == null) {
-				_timer = GetNode<Timer>("./Timer");
-			}
-			return _timer;
 		}
 	}
 
@@ -94,17 +81,17 @@ public class Skeleton : KinematicBody2D
         }
     }
 
-    public void _on_Timer_timeout() 
+    public override void UpdateEntity() 
     {
         Vector2 playerRelativePos = Player.Position - Position;
         if (playerRelativePos.Length() <= 16) {
             direction = Vector2.Zero;
             lastDirection = playerRelativePos.Normalized();
-        } else if (playerRelativePos.Length() <= 48 && bounceCountdown == 0) {
+        } else if (playerRelativePos.Length() <= 64 && bounceCountdown == 0) {
             direction = playerRelativePos.Normalized();
         } else if (bounceCountdown == 0) {
             float v = RandomFloat();
-            if (v <= 0.05) {
+            if (v <= 0.01) {
                 direction = Vector2.Zero;
             } else if (v <= 0.1) {
                 direction = Vector2.Down.Rotated(GetNoise(Position.x, Position.y, noise) * 2 * Mathf.Pi);
@@ -116,9 +103,10 @@ public class Skeleton : KinematicBody2D
         }
     }
 
-    public void Arise()
+    public override void Spawn()
     {
         animationPlaying = true;
+        Show();
         Sprite.Play("birth");
     }
 
@@ -128,12 +116,11 @@ public class Skeleton : KinematicBody2D
         if (health > 0) {
             AnimationPlayer.Play("Hit");
         } else {
-            Timer.Stop();
             direction = Vector2.Zero;
             SetProcess(false);
             animationPlaying = true;
             Sprite.Play("death");
-            EmitSignal("Death");
+            EmitSignal("Despawn", this);
         }
     }
 
@@ -141,9 +128,8 @@ public class Skeleton : KinematicBody2D
     {
         if (Sprite.Animation == "birth") {
             Sprite.Animation = "down_idle";
-            Timer.Start();
         } else if (Sprite.Animation == "death") {
-            GetTree().QueueDelete(this);
+            Hide();
         }
         animationPlaying = false;
     }

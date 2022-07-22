@@ -26,7 +26,7 @@ public class Player : KinematicBody2D
 	public int manaRegeneration = 2;
 
 	[Export]
-	public float attackCooldown = 1000f;
+	public float attackCooldown = 100f;
 
 	private float nextAttackTime = 0f;
 	private int attackDamage = 30;
@@ -105,7 +105,7 @@ public class Player : KinematicBody2D
 		}
 
 		if (direction != Vector2.Zero) {
-			RayCast.CastTo = direction.Normalized() * 8;
+			RayCast.CastTo = direction.Normalized() * 16;
 		}
 	}
 
@@ -140,7 +140,7 @@ public class Player : KinematicBody2D
 				Sprite.Play(animation);
 				nextAttackTime = now + attackCooldown;
 			}
-			
+
 		} else if (@event.IsActionPressed("fireball")) {
 			if (mana >= 25) {
 				mana -= 25;
