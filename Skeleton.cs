@@ -16,10 +16,14 @@ public class Skeleton : Spawnable
     [Export]
     public int healthRegeneration = 1;
 
+    [Export]
+    public int attackDamage = 10;
+
     private Vector2 direction;
     private Vector2 lastDirection = new Vector2(0,1);
     private int bounceCountdown = 0;
     private bool animationPlaying = false;
+    private bool attacking = false;
     private Player _player;
     private Player Player {
 		get 
@@ -65,11 +69,21 @@ public class Skeleton : Spawnable
 
     public override void _Process(float delta)
     {
+        if (isFrozen) {
+            return;
+        }
         health = Mathf.FloorToInt(Mathf.Min(health + healthRegeneration * delta, healthMax));
+
+        if (attacking && Player.attackPlaying) {
+            Hit(Player.attackDamage);
+        }
     }
 
     public override void _PhysicsProcess(float delta)
     {
+        if (isFrozen) {
+            return;
+        }
         Vector2 movement = direction * speed * delta;
         KinematicCollision2D collision = MoveAndCollide(movement);
         if (collision != null && (collision.Collider as Node).Name != "Player") {
@@ -81,14 +95,40 @@ public class Skeleton : Spawnable
         }
     }
 
-    public override void UpdateEntity() 
+    public override void DoUpdate() 
     {
         Vector2 playerRelativePos = Player.Position - Position;
+        var playerDistance = playerRelativePos.Length();
+        if (playerDistance > 256) {
+            Freeze();
+            return;
+        }
+
+        if (isFrozen) {
+            if (playerDistance <= 256) {
+                Unfreeze();
+            }
+            return;
+        }
+
         if (playerRelativePos.Length() <= 16) {
-            direction = Vector2.Zero;
-            lastDirection = playerRelativePos.Normalized();
-        } else if (playerRelativePos.Length() <= 64 && bounceCountdown == 0) {
+            if (attacking) {
+                Player.Hit(attackDamage);
+            } else {
+                direction = Vector2.Zero;
+                animationPlaying = true;
+                attacking = true;
+                string animation = GetGridDirection(lastDirection) + "_attack";
+                Sprite.Play(animation);
+                lastDirection = playerRelativePos.Normalized();
+            } 
+
+            return;
+        } 
+        
+        if (playerRelativePos.Length() <= 64 && bounceCountdown == 0) {
             direction = playerRelativePos.Normalized();
+
         } else if (bounceCountdown == 0) {
             float v = RandomFloat();
             if (v <= 0.01) {
@@ -101,6 +141,8 @@ public class Skeleton : Spawnable
         if (bounceCountdown > 0) {
             bounceCountdown -= 1;
         }
+
+        attacking = false;
     }
 
     public override void Spawn()

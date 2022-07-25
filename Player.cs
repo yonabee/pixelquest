@@ -29,9 +29,9 @@ public class Player : KinematicBody2D
 	public float attackCooldown = 100f;
 
 	private float nextAttackTime = 0f;
-	private int attackDamage = 30;
+	public int attackDamage = 30;
 	private Vector2 lastDirection = new Vector2(0, 1);
-	private bool attackPlaying = false;
+	public bool attackPlaying = false;
 	private bool dragEnabled = false;
 	private AnimatedSprite _sprite;
 	private RayCast2D _raycast;
@@ -131,10 +131,10 @@ public class Player : KinematicBody2D
 		if (@event.IsActionPressed("attack")) {
 			var now = OS.GetTicksMsec();
 			if (now >= nextAttackTime) {
-				var target = RayCast.GetCollider() as Node;
-				if (target != null && target.Name.Contains("Skeleton")) {
-					(target as Skeleton).Hit(attackDamage);
-				}
+				// var target = RayCast.GetCollider() as Node;
+				// if (target != null && target.Name.Contains("Skeleton")) {
+				// 	(target as Skeleton).Hit(attackDamage);
+				// }
 				attackPlaying = true;
 				var animation = GetGridDirection(lastDirection) + "_attack";
 				Sprite.Play(animation);
@@ -154,18 +154,21 @@ public class Player : KinematicBody2D
 
 	public void OnWorldCreated() 
 	{
-		int x = 15;
-		int y = 15;
-		for(; x < 60; x++) {
-			for(; y < 60; y++) {
-				if (TerrainLookup.TryGetValue(new Vector2(x, y), out TerrainType val)) {
-					if (val == TerrainType.GRASS) {
-						GlobalPosition = new Vector2(x * 32, y * 32);
-						return;
-					}
+		for(int x = 0; x < 64; x++) {
+			for(int y = 0; y < 64; y++) {
+				Vector2 loc = new Vector2(x,y);
+				if (TerrainLookup[loc] == TerrainType.GRASS) {
+					GlobalPosition = new Vector2(x * 32, y * 32);
+					return;
 				}
 			}
 		}
+	}
+
+	public void Hit(int damage) 
+	{
+		health -= damage;
+		EmitSignal("PlayerStatsChanged", this);
 	}
 
 	private void _on_Sprite_animation_finished() 

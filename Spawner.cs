@@ -12,17 +12,35 @@ public class Spawner : Node2D
     public int startEntities = 10;
 
     [Export]
+    public int totalEntities = 1500;
+
+    [Export]
     public string entityPath = "res://Entities/Mob/Skeleton.tscn";
 
-    private int entityCount = 0;
-    private PackedScene entity; 
+    [Export]
+    public string rootPath = "/root/Root";
+
+    private int totalCount = 0;
+    private PackedScene entitySource; 
     private List<Vector2> spawns = new List<Vector2>();
-    private List<Spawnable> entities = new List<Spawnable>();
+    private List<Spawnable> awake = new List<Spawnable>();
     private List<Spawnable> sleeping = new List<Spawnable>();
+    private Node2D root;
+    private Timer _timer;
+
+    private Timer Timer {
+		get { 
+			if (_timer == null) {
+				_timer = GetNode<Timer>("./Timer"); 
+			}
+			return _timer; 
+		}
+	}
 
     public override void _Ready()
     {
-        entity = ResourceLoader.Load(entityPath) as PackedScene;
+        entitySource = ResourceLoader.Load(entityPath) as PackedScene;
+        root = GetNode(rootPath) as Node2D;
     } 
 
     public void OnWorldCreated()
@@ -38,46 +56,50 @@ public class Spawner : Node2D
             }
         } 
         foreach(Vector2 spawn in spawns) {
-            InstanceEntity(spawn);
-            if (entities.Count == startEntities) {
+            AwakeEntity(spawn);
+            if (awake.Count == startEntities) {
                 break;
             }
         }
+        Timer.Start();
     }
 
     public void _on_Timer_timeout()
     {
-        if (entities.Count < maxEntities) {
+        if (awake.Count < maxEntities) {
             foreach(Vector2 spawn in spawns) {
-                InstanceEntity(spawn);
-                if (entities.Count >= maxEntities) {
+                AwakeEntity(spawn);
+                if (awake.Count >= maxEntities) {
                     break;
                 }
             }
         }
 
-        foreach(Spawnable entity in entities) {
-            entity.UpdateEntity();
+        for (int i = 0; i < awake.Count; i++) {
+            Spawnable entity = awake[i];
+            if (entity != null) {
+                entity.DoUpdate();
+            }
         }
     }
 
     public void OnDespawn(Spawnable entity)
     {
-        entities.Remove(entity);
+        awake.Remove(entity);
         sleeping.Add(entity);
     }
 
-    private void InstanceEntity(Vector2 tile) 
+    private void AwakeEntity(Vector2 tile) 
     {
         Spawnable instance;
 
-        if (entity != null) {
-            if (sleeping.Count > 0) {
+        if (entitySource != null) {
+            if (sleeping.Count> 0) {
                 instance = sleeping[0];
-                sleeping.RemoveAt(0);
+                sleeping.Remove(instance);
             } else {
-                instance = entity.Instance<Spawnable>();
-                AddChild(instance);
+                instance = entitySource.Instance<Spawnable>();
+                root.AddChild(instance);
                 instance.Connect("Despawn", this, "OnDespawn");
             }
             instance.Position = new Vector2(
@@ -85,7 +107,9 @@ public class Spawner : Node2D
                 tile.y * 32 + RNG.RandfRange(0, 32)
             );
             instance.Spawn();
-            entities.Add(instance);
+
+            awake.Add(instance);
+            totalCount++;
         }
     }
 }

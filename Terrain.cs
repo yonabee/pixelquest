@@ -25,7 +25,7 @@ public class Terrain : TileMap
     {
         this.Connect("WorldCreated", GetNode<KinematicBody2D>("../Player"), "OnWorldCreated");
         this.Connect("WorldCreated", GetNode<TileMap>("../Objects"), "OnWorldCreated");
-        this.Connect("WorldCreated", GetNode<Spawner>("../Spawner"), "OnWorldCreated");
+        this.Connect("WorldCreated", GetNode<Spawner>("../Player/Spawner"), "OnWorldCreated");
 
         noise.Seed = RandomInt();
         noise.Octaves = 3;
@@ -33,44 +33,89 @@ public class Terrain : TileMap
         noise.Lacunarity = 4f * RandomFloat();
         noise.Persistence = 0.5f + 0.5f * RandomFloat();
 
-        // Texture tex = new ImageTexture();
-        // Image blobs = new Image();
-        // blobs.Create(192, 64, false, Image.Format.Rgba8);
-        // blobs.Lock();
-        // blobs.Unlock();
-
-        // TileSet = new TileSet();
-        // TileSet.CreateTile(0);
-        // TileSet.TileSetTexture(0, tex);
-
-        // Determine main areas of land and water.
+        // Create the earth.
         for(int x = 0; x < 64; x++) {
             for (int y = 0; y < 64; y++) {
                 Vector2 loc = new Vector2(x, y);
 
                 if (x > 4 && x <= 60 && y > 4 && y <= 60) {
-                    if (TerrainLookup.ContainsKey(loc)) {
-                        //SetCellv(loc, TerrainLookup[loc] == TerrainType.WATER ? 1 : 0);
-                    } else {
-                        float n = GetNoise(x, y, noise);
-                        var terrainType = n <= 0.5f ? TerrainType.WATER : TerrainType.GRASS;
-                        //SetCellv(loc, terrainType == TerrainType.WATER ? 1 : 0);
-
-                        TerrainLookup.Add(loc, terrainType);
-                    }
+                    float n = GetNoise(x, y, noise);
+                    var terrainType = n <= 0.5f ? TerrainType.WATER : TerrainType.GRASS;
+                    TerrainLookup.Add(loc, terrainType);
                 } else {
-                    //SetCellv(loc, 1);
                     if (!TerrainLookup.ContainsKey(loc)) {
                         TerrainLookup.Add(loc, TerrainType.WATER);
                     }
                 } 
-
-
             }
-
         }
 
-        // Find and mark edges.
+        // Determine islands.
+        Dictionary<Vector2, bool> filled = new Dictionary<Vector2, bool>();
+        List<List<Vector2>> islands = new List<List<Vector2>>();
+        for(int x = 0; x < 64; x++) {
+            for (int y = 0; y < 64; y++) {
+                Vector2 loc = new Vector2(x, y);
+                filled.Add(loc, false);
+            }
+        }
+        for(int x = 0; x < 64; x++) {
+            for (int y = 0; y < 64; y++) {
+                Vector2 loc = new Vector2(x, y);  
+                if (TerrainLookup.TryGetValue(loc, out TerrainType type)) {
+                    if (type == TerrainType.GRASS ) {
+                        if (!filled[loc]) {
+                            List<Vector2> area = new List<Vector2>();
+                            islands.Add(area);
+                            FloodFill(loc, area, filled);
+                        }
+                    } else {
+                        filled[loc] = true;
+                    }
+                }  else {
+                    filled[loc] = true;
+                }
+            }
+        }
+
+        // Build bridges.
+        if (islands.Count > 1) {
+            foreach(List<Vector2> island in islands) 
+            {
+                int idx = RNG.RandiRange(0, islands.Count - 2);
+                if (idx >= islands.IndexOf(island)) {
+                    idx++;
+                }
+                List<Vector2> nextIsland = islands[idx];
+                Vector2 start = island[RNG.RandiRange(0, island.Count - 1)];
+                Vector2 end = nextIsland[RNG.RandiRange(0, nextIsland.Count - 1)];
+                int startX = Math.Min(Mathf.FloorToInt(start.x), Mathf.FloorToInt(end.x));
+                int endX = Math.Max(Mathf.FloorToInt(start.x), Mathf.FloorToInt(end.x));
+                int startY = Math.Min(Mathf.FloorToInt(start.y), Mathf.FloorToInt(end.y));
+                int endY = Math.Max(Mathf.FloorToInt(start.y), Mathf.FloorToInt(end.y));
+
+                int currentX = startX;
+                int currentY = startY;
+                for (int x = startX; x <= endX; x++) {
+                    for (int y = startY; y <= endY; y++) {
+                        Vector2 loc = new Vector2(currentX, currentY);
+                        TerrainLookup[loc] = TerrainType.GRASS;
+                        if (currentX == endX) {
+                            currentY++;
+                        } else if (currentY == endY) {
+                            currentX++;
+                        } else if (RandomFloat() > 0.5f) {
+                            currentX++;
+                        } else {
+                            currentY++;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        // Mark shorelines.
         for(int x = 0; x < 64; x++) {
             for (int y = 0; y < 64; y++) {   
                 Vector2 loc = new Vector2(x, y);  
@@ -94,7 +139,7 @@ public class Terrain : TileMap
                                 break;
                             }
                         }
-                        // Introduce sand.
+                        // Dump sand.
                         if (type == TerrainType.GRASS) {
                             float n = GetNoise(x, y, noise);
                             if (n > 0.6) {
@@ -103,6 +148,8 @@ public class Terrain : TileMap
                             }
                         }
                     } 
+
+                    // Rake the sand.
                     if (type == TerrainType.SAND) {
                         for (int x1 = x - 1; x1 <= x + 1; x1++) {
                             for (int y1 = y - 1; y1 <= y + 1; y1++) {
@@ -124,6 +171,48 @@ public class Terrain : TileMap
                         }
                     }
                 }  
+            }
+        }
+
+        if (!TerrainLookup.ContainsValue(TerrainType.SAND)) {
+            for (int x = 29; x <= 35; x++) {
+                for (int y = 29; y <= 35; y++) {
+                    Vector2 loc = new Vector2(x, y);
+                    TerrainLookup[loc] = TerrainType.GRASS;
+                }
+            }
+
+            for (int x = 31; x <= 33; x++) {
+                for (int y = 31; y <= 33; y++) {
+                    Vector2 loc = new Vector2(x, y);
+                    TerrainLookup[loc] = TerrainType.CLIFF;
+                }
+            }
+
+            TerrainLookup[new Vector2(32,32)] = TerrainType.SAND;
+
+            for (int x = 29; x <= 35; x++) {
+                for (int y = 29; y <= 35; y++) {
+                    if (x < 30 || x > 34 || y < 30 || y > 34) {
+                        Vector2 loc = new Vector2(x, y);
+                        for (int x1 = x - 1; x1 <= x + 1; x1++) {
+                            for (int y1 = y - 1; y1 <= y + 1; y1++) {
+                                if (x1 == x && y1 == y) {
+                                    continue;
+                                }
+                                Vector2 loc1 = new Vector2(x1, y1);
+                                if (TerrainLookup[loc1] == TerrainType.WATER) {
+                                    TerrainLookup[loc] = TerrainType.SHORE;
+                                    break;
+                                }
+                            }
+                            if (TerrainLookup[loc] == TerrainType.SHORE) {
+                                break;
+                            }
+                        }
+                    }
+                    
+                }
             }
         }
 
@@ -164,5 +253,35 @@ public class Terrain : TileMap
         UpdateBitmaskRegion(new Vector2(-64,-64), new Vector2(64,64));
         Sand.UpdateBitmaskRegion(new Vector2(-64,-64), new Vector2(64,64));
         EmitSignal("WorldCreated");
+    }
+
+    private void FloodFill(Vector2 loc, List<Vector2> island, Dictionary<Vector2, bool> filled)
+    {
+        filled[loc] = true;
+        island.Add(loc);
+        for (int x = Mathf.FloorToInt(loc.x) - 1; x <= Mathf.FloorToInt(loc.x) + 1; x++) {
+            for (int y = Mathf.FloorToInt(loc.y) - 1; y <= Mathf.FloorToInt(loc.y) + 1; y++) {
+                if (x < 0 || x >= 64 || y < 0 || y >= 64) {
+                    continue;
+                }
+                if (x == loc.x && y == loc.y) {
+                    continue;
+                }
+                Vector2 loc1 = new Vector2(x, y);
+                if (filled[loc1]) {
+                    continue;
+                }
+
+                if (TerrainLookup.TryGetValue(loc1, out TerrainType type)) {
+                    if (type == TerrainType.GRASS) {
+                        FloodFill(loc1, island, filled);
+                    } else {
+                        filled[loc1] = true;
+                    }
+                } else {
+                    filled[loc1] = true;
+                }
+            }
+        }
     }
 }
