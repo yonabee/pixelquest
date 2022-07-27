@@ -9,7 +9,7 @@ public class Spawner : Node2D
     public int maxEntities = 500;
 
     [Export]
-    public int startEntities = 10;
+    public int spawnRate = 10;
 
     [Export]
     public int totalEntities = 1500;
@@ -26,14 +26,34 @@ public class Spawner : Node2D
     private List<Spawnable> awake = new List<Spawnable>();
     private List<Spawnable> sleeping = new List<Spawnable>();
     private Node2D root;
-    private Timer _timer;
+    private Timer _updateTimer;
+    private Timer _spawnTimer;
+    private Timer _fastTimer;
 
-    private Timer Timer {
+    private Timer UpdateTimer {
 		get { 
-			if (_timer == null) {
-				_timer = GetNode<Timer>("./Timer"); 
+			if (_updateTimer == null) {
+				_updateTimer = GetNode<Timer>("./Update Timer"); 
 			}
-			return _timer; 
+			return _updateTimer; 
+		}
+	}
+
+    private Timer SpawnTimer {
+		get { 
+			if (_spawnTimer == null) {
+				_spawnTimer = GetNode<Timer>("./Spawn Timer"); 
+			}
+			return _spawnTimer; 
+		}
+	}
+
+    private Timer FastTimer {
+		get { 
+			if (_fastTimer == null) {
+				_fastTimer = GetNode<Timer>("./Fast Timer"); 
+			}
+			return _fastTimer; 
 		}
 	}
 
@@ -57,28 +77,48 @@ public class Spawner : Node2D
         } 
         foreach(Vector2 spawn in spawns) {
             AwakeEntity(spawn);
-            if (awake.Count == startEntities) {
+            if (awake.Count == spawnRate) {
                 break;
             }
         }
-        Timer.Start();
+        do {
+            Vector2 spawn = spawns[RNG.RandiRange(0, spawns.Count - 1)];
+            AwakeEntity(spawn);
+        } while (awake.Count < spawnRate);
+
+        UpdateTimer.Start();
+        SpawnTimer.Start();
+        FastTimer.Start();
     }
 
     public void _on_Timer_timeout()
     {
-        if (awake.Count < maxEntities) {
-            foreach(Vector2 spawn in spawns) {
-                AwakeEntity(spawn);
-                if (awake.Count >= maxEntities) {
-                    break;
-                }
-            }
-        }
-
         for (int i = 0; i < awake.Count; i++) {
             Spawnable entity = awake[i];
             if (entity != null) {
                 entity.DoUpdate();
+            }
+        }
+    }
+
+    public void _on_Spawn_Timer_timeout()
+    {
+        int cohort = 0;
+        if (awake.Count < maxEntities) {
+            do {
+                Vector2 spawn = spawns[RNG.RandiRange(0, spawns.Count - 1)];
+                AwakeEntity(spawn);
+                cohort++;
+            } while (cohort < spawnRate && awake.Count < maxEntities);
+        }
+    }
+
+    public void _on_Fast_Timer_timeout()
+    {
+        for (int i = 0; i < awake.Count; i++) {
+            Spawnable entity = awake[i];
+            if (entity != null && !entity.isFrozen) {
+                entity.DoFastUpdate();
             }
         }
     }

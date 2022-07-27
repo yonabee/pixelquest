@@ -18,6 +18,10 @@ public class Spawnable : KinematicBody2D
         // AI logic
     }
 
+    public virtual void DoFastUpdate() {
+        // Realtime AI
+    }
+
     public void Freeze()
     {
         Hide();

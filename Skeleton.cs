@@ -17,13 +17,14 @@ public class Skeleton : Spawnable
     public int healthRegeneration = 1;
 
     [Export]
-    public int attackDamage = 10;
+    public int attackDamage = 1;
 
     private Vector2 direction;
     private Vector2 lastDirection = new Vector2(0,1);
     private int bounceCountdown = 0;
     private bool animationPlaying = false;
     private bool attacking = false;
+    public bool born = false;
     private Player _player;
     private Player Player {
 		get 
@@ -69,7 +70,7 @@ public class Skeleton : Spawnable
 
     public override void _Process(float delta)
     {
-        if (isFrozen) {
+        if (isFrozen || !born) {
             return;
         }
         health = Mathf.FloorToInt(Mathf.Min(health + healthRegeneration * delta, healthMax));
@@ -81,7 +82,7 @@ public class Skeleton : Spawnable
 
     public override void _PhysicsProcess(float delta)
     {
-        if (isFrozen) {
+        if (isFrozen || !born) {
             return;
         }
         Vector2 movement = direction * speed * delta;
@@ -97,6 +98,10 @@ public class Skeleton : Spawnable
 
     public override void DoUpdate() 
     {
+        if (!born) {
+            return;
+        }
+
         Vector2 playerRelativePos = Player.Position - Position;
         var playerDistance = playerRelativePos.Length();
         if (playerDistance > 256) {
@@ -110,23 +115,8 @@ public class Skeleton : Spawnable
             }
             return;
         }
-
-        if (playerRelativePos.Length() <= 16) {
-            if (attacking) {
-                Player.Hit(attackDamage);
-            } else {
-                direction = Vector2.Zero;
-                animationPlaying = true;
-                attacking = true;
-                string animation = GetGridDirection(lastDirection) + "_attack";
-                Sprite.Play(animation);
-                lastDirection = playerRelativePos.Normalized();
-            } 
-
-            return;
-        } 
-        
-        if (playerRelativePos.Length() <= 64 && bounceCountdown == 0) {
+     
+        if (playerRelativePos.Length() <= 128 && bounceCountdown == 0) {
             direction = playerRelativePos.Normalized();
 
         } else if (bounceCountdown == 0) {
@@ -145,11 +135,40 @@ public class Skeleton : Spawnable
         attacking = false;
     }
 
+    public override void DoFastUpdate()
+    {
+        if (!born || isFrozen) {
+            return;
+        }
+
+        Vector2 playerRelativePos = Player.Position - Position;
+        if (playerRelativePos.Length() > 32) {
+            return;
+        }
+
+        direction = playerRelativePos.Normalized();
+
+        if (playerRelativePos.Length() <= 16) {
+            if (attacking) {
+                Player.Hit(attackDamage);
+            } else {
+                direction = Vector2.Zero;
+                animationPlaying = true;
+                attacking = true;
+                string animation = GetGridDirection(lastDirection) + "_attack";
+                Sprite.Play(animation);
+                lastDirection = playerRelativePos.Normalized();
+            } 
+        }
+    }
+
     public override void Spawn()
     {
         animationPlaying = true;
         Show();
         Sprite.Play("birth");
+        direction = Vector2.Down.Rotated(GetNoise(Position.x, Position.y, noise) * 2 * Mathf.Pi);
+        born = false;
     }
 
     public void Hit(int damage)
@@ -170,6 +189,7 @@ public class Skeleton : Spawnable
     {
         if (Sprite.Animation == "birth") {
             Sprite.Animation = "down_idle";
+            born = true;
         } else if (Sprite.Animation == "death") {
             Hide();
         }
