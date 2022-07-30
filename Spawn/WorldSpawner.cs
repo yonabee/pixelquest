@@ -3,29 +3,14 @@ using static GameUtils;
 using System;
 using System.Collections.Generic;
 
-public class Spawner : Node2D
+public class WorldSpawner : Spawner
 {
-    [Export]
-    public int maxEntities = 500;
-
     [Export]
     public int spawnRate = 10;
 
     [Export]
     public int totalEntities = 1500;
 
-    [Export]
-    public string entityPath = "res://Entities/Mob/Skeleton.tscn";
-
-    [Export]
-    public string rootPath = "/root/Root";
-
-    private int totalCount = 0;
-    private PackedScene entitySource; 
-    private List<Vector2> spawns = new List<Vector2>();
-    private List<Spawnable> awake = new List<Spawnable>();
-    private List<Spawnable> sleeping = new List<Spawnable>();
-    private Node2D root;
     private Timer _updateTimer;
     private Timer _spawnTimer;
     private Timer _fastTimer;
@@ -56,12 +41,6 @@ public class Spawner : Node2D
 			return _fastTimer; 
 		}
 	}
-
-    public override void _Ready()
-    {
-        entitySource = ResourceLoader.Load(entityPath) as PackedScene;
-        root = GetNode(rootPath) as Node2D;
-    } 
 
     public void OnWorldCreated()
     {
@@ -103,14 +82,8 @@ public class Spawner : Node2D
 
     public void _on_Spawn_Timer_timeout()
     {
-        int cohort = 0;
-        if (awake.Count < maxEntities) {
-            do {
-                Vector2 spawn = spawns[RNG.RandiRange(0, spawns.Count - 1)];
-                AwakeEntity(spawn);
-                cohort++;
-            } while (cohort < spawnRate && awake.Count < maxEntities);
-        }
+        Vector2 spawn = spawns[RNG.RandiRange(0, spawns.Count - 1)];
+        AwakeEntity(spawn);
     }
 
     public void _on_Fast_Timer_timeout()
@@ -120,36 +93,6 @@ public class Spawner : Node2D
             if (entity != null && !entity.isFrozen) {
                 entity.DoFastUpdate();
             }
-        }
-    }
-
-    public void OnDespawn(Spawnable entity)
-    {
-        awake.Remove(entity);
-        sleeping.Add(entity);
-    }
-
-    private void AwakeEntity(Vector2 tile) 
-    {
-        Spawnable instance;
-
-        if (entitySource != null) {
-            if (sleeping.Count> 0) {
-                instance = sleeping[0];
-                sleeping.Remove(instance);
-            } else {
-                instance = entitySource.Instance<Spawnable>();
-                root.AddChild(instance);
-                instance.Connect("Despawn", this, "OnDespawn");
-            }
-            instance.Position = new Vector2(
-                tile.x * 32 + RNG.RandfRange(0, 32),
-                tile.y * 32 + RNG.RandfRange(0, 32)
-            );
-            instance.Spawn();
-
-            awake.Add(instance);
-            totalCount++;
         }
     }
 }

@@ -110,7 +110,7 @@ public class Skeleton : Spawnable
         }
 
         if (isFrozen) {
-            if (playerDistance <= 256) {
+            if (playerDistance <= 256 ) {
                 Unfreeze();
             }
             return;
@@ -178,7 +178,6 @@ public class Skeleton : Spawnable
             AnimationPlayer.Play("Hit");
         } else {
             direction = Vector2.Zero;
-            SetProcess(false);
             animationPlaying = true;
             Sprite.Play("death");
             EmitSignal("Despawn", this);

@@ -35,6 +35,17 @@ public class Player : KinematicBody2D
 	private bool dragEnabled = false;
 	private AnimatedSprite _sprite;
 	private RayCast2D _raycast;
+	private bool gameOver = false;
+
+	private AnimationPlayer _animationPlayer;
+    private AnimationPlayer AnimationPlayer {
+		get { 
+			if (_animationPlayer == null) {
+				_animationPlayer = GetNode<AnimationPlayer>("./AnimationPlayer");
+			}
+			return _animationPlayer;
+		}
+	}
 
 	private AnimatedSprite Sprite {
 		get { 
@@ -167,8 +178,18 @@ public class Player : KinematicBody2D
 
 	public void Hit(int damage) 
 	{
+		if (gameOver) {
+			return;
+		}
 		health -= damage;
 		EmitSignal("PlayerStatsChanged", this);
+		if (health <= 0) {
+			SetProcess(false);
+			gameOver = true;
+			AnimationPlayer.Play("GameOver");
+		} else {
+			AnimationPlayer.Play("Hit");
+		}
 	}
 
 	private void _on_Sprite_animation_finished() 
