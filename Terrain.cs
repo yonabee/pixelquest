@@ -25,7 +25,7 @@ public class Terrain : TileMap
     {
         this.Connect("WorldCreated", GetNode<KinematicBody2D>("../Player"), "OnWorldCreated");
         this.Connect("WorldCreated", GetNode<TileMap>("../Objects"), "OnWorldCreated");
-        this.Connect("WorldCreated", GetNode<Spawner>("../Player/Spawner"), "OnWorldCreated");
+        this.Connect("WorldCreated", GetNode<WorldSpawner>("../Player/Spawner"), "OnWorldCreated");
 
         noise.Seed = RandomInt();
         noise.Octaves = 3;

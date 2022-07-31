@@ -3,7 +3,7 @@ using static GameUtils;
 using System;
 using System.Collections.Generic;
 
-public class Spawner : Node2D
+public class Spawner<T> : Node2D where T : Node2D
 {
     [Export]
     public int maxEntities = 500;
@@ -17,14 +17,11 @@ public class Spawner : Node2D
     [Export]
     public string rootPath = "/root/Root";
 
-    [Signal]
-	public delegate void SpawnCountUpdated(string entityName, int entityCount);
-
     protected int totalCount = 0;
     protected PackedScene entitySource; 
     protected List<Vector2> spawns = new List<Vector2>();
-    protected List<Spawnable> awake = new List<Spawnable>();
-    protected List<Spawnable> sleeping = new List<Spawnable>();
+    protected List<T> awake = new List<T>();
+    protected List<T> sleeping = new List<T>();
     protected Node2D root;
 
     public override void _Ready()
@@ -35,41 +32,37 @@ public class Spawner : Node2D
         this.Connect("SpawnCountUpdated", GetNode<CanvasLayer>("../../GUI"), "OnSpawnCountUpdated");
     } 
 
-    public void OnDespawn(Spawnable entity)
+    public virtual void OnDespawn(T entity)
     {
         awake.Remove(entity);
         entity.SetProcess(false);
         entity.SetPhysicsProcess(false);
-        entity.CollisionShape.Disabled = true;
         sleeping.Add(entity);
         EmitSignal("SpawnCountUpdated", entityName, awake.Count);
     }
 
-    protected void AwakeEntity(Vector2 tile) 
+    public virtual T AwakeEntity(Vector2 position) 
     {
-        Spawnable entity;
+        T entity = null;
 
         if (entitySource != null) {
-            if (sleeping.Count> 0) {
+            if (sleeping.Count > 0) {
                 entity = sleeping[0];
                 sleeping.Remove(entity);
             } else {
-                entity = entitySource.Instance<Spawnable>();
+                entity = entitySource.Instance<T>();
                 root.AddChild(entity);
                 entity.Connect("Despawn", this, "OnDespawn");
             }
-            entity.Position = new Vector2(
-                tile.x * 32 + RNG.RandfRange(0, 32),
-                tile.y * 32 + RNG.RandfRange(0, 32)
-            );
+            entity.Position = position;
             entity.SetProcess(true);
             entity.SetPhysicsProcess(true);
-            entity.CollisionShape.Disabled = false;
-            entity.Spawn();
 
             awake.Add(entity);
             totalCount++;
             EmitSignal("SpawnCountUpdated", entityName, awake.Count);
         }
+
+        return entity;
     }
 }

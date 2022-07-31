@@ -23,13 +23,20 @@ public class Player : KinematicBody2D
 	public int manaMax = 100;
 
 	[Export]
-	public int manaRegeneration = 2;
+	public int manaRegeneration = 4;
 
 	[Export]
-	public float attackCooldown = 100f;
-
-	private float nextAttackTime = 0f;
 	public int attackDamage = 30;
+
+	[Export]
+	public int fireballDamage = 50;
+
+	private float nextFireballTime = 0f;
+	private float fireballCooldown = 100f;
+	private float nextAttackTime = 0f;
+	public float attackCooldown = 100f;
+	private int fireballCost = 5;
+	
 	private Vector2 lastDirection = new Vector2(0, 1);
 	public bool attackPlaying = false;
 	private bool dragEnabled = false;
@@ -65,6 +72,16 @@ public class Player : KinematicBody2D
 		}
 	}
 
+	private BulletSpawner _bullets;
+	private BulletSpawner Bullets {
+		get {
+			if (_bullets == null) {
+				_bullets = GetNode<BulletSpawner>("./BulletSpawner");
+			}
+			return _bullets;
+		}
+	}
+
 	[Signal]
 	public delegate void PlayerStatsChanged(Player player);
 
@@ -87,6 +104,9 @@ public class Player : KinematicBody2D
 			health = newHealth;
 			EmitSignal("PlayerStatsChanged", this);
 		}
+		if (!Sprite.IsPlaying()) {
+			attackPlaying = false;
+		}
 	}
 
 	public override void _PhysicsProcess(float delta)
@@ -108,7 +128,7 @@ public class Player : KinematicBody2D
 			}
 		}
 		if (attackPlaying) {
-			movement = 0.3f * movement;
+			movement = 0.8f * movement;
 		}
 		MoveAndSlide(movement);
 		if (!attackPlaying) {
@@ -139,28 +159,31 @@ public class Player : KinematicBody2D
 			}
 		}
 
+		var now = OS.GetTicksMsec();
+
 		if (@event.IsActionPressed("attack")) {
-			var now = OS.GetTicksMsec();
+			
 			if (now >= nextAttackTime) {
-				// var target = RayCast.GetCollider() as Node;
-				// if (target != null && target.Name.Contains("Skeleton")) {
-				// 	(target as Skeleton).Hit(attackDamage);
-				// }
 				attackPlaying = true;
 				var animation = GetGridDirection(lastDirection) + "_attack";
-				Sprite.Play(animation);
+				Sprite.Animation = animation; 
+				Sprite.Frame = 0;
+				Sprite.Play();
 				nextAttackTime = now + attackCooldown;
 			}
 
 		} else if (@event.IsActionPressed("fireball")) {
-			if (mana >= 25) {
-				mana -= 25;
+			if (mana >= fireballCost && now >= nextFireballTime) {
+				mana -= fireballCost;
 				EmitSignal("PlayerStatsChanged", this);
 				attackPlaying = true;
 				var animation = GetGridDirection(lastDirection) + "_fireball";
-				Sprite.Play(animation);
+				Sprite.Animation = animation; 
+				Sprite.Frame = 0;
+				Sprite.Play();
+				nextFireballTime = now + fireballCooldown;
 			}
-		}
+		} 
 	}
 
 	public void OnWorldCreated() 
@@ -195,6 +218,12 @@ public class Player : KinematicBody2D
 	private void _on_Sprite_animation_finished() 
 	{
 		attackPlaying = false;
+		if (Sprite.Animation.EndsWith("fireball")) {
+			Vector2 pos = GlobalPosition + lastDirection.Normalized() * 4;
+			Fireball fireball = Bullets.AwakeEntity(pos) as Fireball;
+			fireball.attackDamage = fireballDamage;
+			fireball.direction = lastDirection.Normalized();
+		}
 	}
 
 	private void AnimatePlayer(Vector2 direction)

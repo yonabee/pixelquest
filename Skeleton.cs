@@ -86,7 +86,7 @@ public class Skeleton : Spawnable
             return;
         }
         Vector2 movement = direction * speed * delta;
-        KinematicCollision2D collision = MoveAndCollide(movement);
+        KinematicCollision2D collision = (this as KinematicBody2D).MoveAndCollide(movement);
         if (collision != null && (collision.Collider as Node).Name != "Player") {
             direction = direction.Rotated(RNG.RandfRange(Mathf.Pi / 4, Mathf.Pi / 2));
             bounceCountdown = RNG.RandiRange(2, 5);

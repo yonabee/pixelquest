@@ -3,13 +3,16 @@ using static GameUtils;
 using System;
 using System.Collections.Generic;
 
-public class WorldSpawner : Spawner
+public class WorldSpawner : Spawner<Spawnable>
 {
     [Export]
     public int spawnRate = 10;
 
     [Export]
     public int totalEntities = 1500;
+
+    [Signal]
+	public delegate void SpawnCountUpdated(string entityName, int entityCount);
 
     private Timer _updateTimer;
     private Timer _spawnTimer;
@@ -68,6 +71,23 @@ public class WorldSpawner : Spawner
         UpdateTimer.Start();
         SpawnTimer.Start();
         FastTimer.Start();
+    }
+
+    public override void OnDespawn(Spawnable entity) {
+        entity.CollisionShape.SetDeferred("disabled", true);
+        base.OnDespawn(entity);
+    }
+
+    public override Spawnable AwakeEntity(Vector2 tile) 
+    {
+        Vector2 position = new Vector2(
+            tile.x * 32 + RNG.RandfRange(0, 32),
+            tile.y * 32 + RNG.RandfRange(0, 32)
+        );
+        Spawnable entity = base.AwakeEntity(position);
+        entity.CollisionShape.SetDeferred("disabled", false);
+        entity.Spawn();
+        return entity;
     }
 
     public void _on_Timer_timeout()
